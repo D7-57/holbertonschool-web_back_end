@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """
-Hypermedia pagination utilities and a Server class to paginate
-the Popular_Baby_Names.csv dataset.
+Simple pagination module
 """
-
 import csv
 import math
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 
 def index_range(page: int, page_size: int) -> Tuple[int, int]:
     """
-    Compute the start and end indices for a page of a paginated list.
+    Return a tuple of size two containing a start index and an end index
+    corresponding to the range of indexes to return in a list for those
+    particular pagination parameters.
 
     Args:
-        page (int): The current page number (1-indexed).
+        page (int): The page number (1-indexed).
         page_size (int): The number of items per page.
 
     Returns:
-        Tuple[int, int]: A tuple of (start_index, end_index) for slicing.
+        Tuple[int, int]: A tuple containing the start and end indexes.
     """
     start_index = (page - 1) * page_size
     end_index = page * page_size
-    return start_index, end_index
+    return (start_index, end_index)
 
 
 class Server:
@@ -30,84 +30,76 @@ class Server:
 
     DATA_FILE = "Popular_Baby_Names.csv"
 
-    def __init__(self) -> None:
-        """Initialize the server with an empty dataset cache."""
-        self.__dataset: List[List[str]] | None = None
+    def __init__(self):
+        """Initialize the server with no cached dataset."""
+        self.__dataset = None
 
-    def dataset(self) -> List[List[str]]:
+    def dataset(self) -> List[List]:
         """
-        Return the cached dataset, loading it from CSV on first access.
+        Cached dataset
 
         Returns:
-            List[List[str]]: The dataset rows (excluding the header).
+            List[List]: The dataset without the header row.
         """
         if self.__dataset is None:
-            with open(self.DATA_FILE, encoding="utf-8") as f:
+            with open(self.DATA_FILE) as f:
                 reader = csv.reader(f)
                 dataset = [row for row in reader]
             self.__dataset = dataset[1:]
         return self.__dataset
 
-    def get_page(self, page: int = 1, page_size: int = 10) -> List[List[str]]:
+    def get_page(self, page: int = 1, page_size: int = 10) -> List[List]:
         """
-        Return a page of the dataset based on 1-indexed page and page_size.
-
-        Validates that both arguments are integers greater than 0.
-        Uses index_range to compute slice bounds. If the start index is
-        beyond the dataset length, returns an empty list.
+        Return the appropriate page of the dataset based on pagination.
 
         Args:
-            page (int): The page number (1-indexed). Defaults to 1.
-            page_size (int): Number of items per page. Defaults to 10.
+            page (int, optional): The page number (1-indexed).
+            page_size (int, optional): The number of items per page.
 
         Returns:
-            List[List[str]]: The list of rows for the requested page.
+            List[List]: The requested page of the dataset.
         """
-        assert isinstance(page, int) and page > 0
-        assert isinstance(page_size, int) and page_size > 0
+        assert isinstance(
+            page, int) and page > 0
+        assert isinstance(
+            page_size, int) and page_size > 0
 
-        data = self.dataset()
-        start, end = index_range(page, page_size)
+        dataset = self.dataset()
+        start_idx, end_idx = index_range(page, page_size)
 
-        if start >= len(data):
+        if start_idx >= len(dataset):
             return []
-        return data[start:end]
 
-    def get_hyper(self, page: int = 1, page_size: int = 10) -> Dict[str, object]:
+        return dataset[start_idx:end_idx]
+
+    def get_hyper(self, page: int = 1, page_size: int = 10) -> dict:
         """
-        Return hypermedia-style pagination metadata and data for a page.
-
-        The returned dictionary contains:
-            - page_size: length of the returned page (may be 0 if out of range)
-            - page: current page number
-            - data: the actual page data (list of rows)
-            - next_page: next page number or None if at/after the end
-            - prev_page: previous page number or None if on the first page
-            - total_pages: total number of pages as an integer
+        Return a dictionary containing pagination information
 
         Args:
-            page (int): The page number (1-indexed). Defaults to 1.
-            page_size (int): Number of items per page. Defaults to 10.
+            page (int, optional): The page number (1-indexed).
+            page_size (int, optional): The number of items per page.
 
         Returns:
-            Dict[str, object]: Hypermedia pagination dict.
+            dict: A dictionary containing:
+                - page_size (int): Number of items on the current page.
+                - page (int): Current page number.
+                - data (List[List]): The dataset page.
+                - next_page (int or None): Next page number, or None.
+                - prev_page (int or None): Previous page number, or None
+                - total_pages (int): Total number of pages in the dataset.
         """
-        page_data = self.get_page(page, page_size)
-
+        data = self.get_page(page, page_size)
         total_items = len(self.dataset())
-        total_pages = math.ceil(total_items / page_size) if page_size else 0
+        total_pages = math.ceil(total_items / page_size)
 
-        prev_page = page - 1 if page > 1 else None
-
-        # next_page exists only if end index is less than total_items
-        start, end = index_range(page, page_size)
-        next_page = page + 1 if end < total_items else None
-
-        return {
-            "page_size": len(page_data),
+        hypermedia = {
+            "page_size": len(data),
             "page": page,
-            "data": page_data,
-            "next_page": next_page,
-            "prev_page": prev_page,
+            "data": data,
+            "next_page": page + 1 if page < total_pages else None,
+            "prev_page": page - 1 if page > 1 else None,
             "total_pages": total_pages,
         }
+
+        return hypermedia
