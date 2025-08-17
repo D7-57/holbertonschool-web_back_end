@@ -1,0 +1,2 @@
+// find matches
+db.school.find({ name: "Holberton school" }).forEach(printjson)
