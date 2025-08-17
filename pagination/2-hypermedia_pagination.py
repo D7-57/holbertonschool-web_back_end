@@ -75,7 +75,7 @@ class Server:
 
     def get_hyper(self, page: int = 1, page_size: int = 10) -> Dict[str, object]:
         """
-        Return hypermedia-style pagination metadata and data for a given page.
+        Return hypermedia-style pagination metadata and data for a page.
 
         The returned dictionary contains:
             - page_size: length of the returned page (may be 0 if out of range)
@@ -92,16 +92,14 @@ class Server:
         Returns:
             Dict[str, object]: Hypermedia pagination dict.
         """
-        # Use get_page (includes assertions and slicing)
         page_data = self.get_page(page, page_size)
 
         total_items = len(self.dataset())
         total_pages = math.ceil(total_items / page_size) if page_size else 0
 
-        # Compute prev/next
         prev_page = page - 1 if page > 1 else None
 
-        # Determine if there is a next page: only if current slice end < total_items
+        # next_page exists only if end index is less than total_items
         start, end = index_range(page, page_size)
         next_page = page + 1 if end < total_items else None
 
